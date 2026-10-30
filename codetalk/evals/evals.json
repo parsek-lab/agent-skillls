@@ -1,0 +1,448 @@
+{
+  "skill_name": "codetalk",
+  "schema_version": 2,
+  "format": {
+    "summary": "skill-creator evals.json (v1) superset. Each eval adds `turns` (ordered user messages, one session) with optional machine-checked `assertions` per turn, plus `expectations` for a human/LLM grader.",
+    "legacy_compatibility": "`id`, `prompt`, `expected_output`, `files`, `expectations` keep skill-creator semantics. `prompt` always equals turns[0].user. A single-prompt runner executes only turns[0]; for evals with `multi_turn: true` that is incomplete, so such runners must skip them or report them as not run, never as passed.",
+    "turn_semantics": "turns[i].user is sent as the next user message in the same conversation (claude -p --session-id, then --resume). turns[i].assertions apply only to the final assistant text of that turn. An empty assertions list means the turn is setup only.",
+    "assertion_types": {
+      "first_line": "{pattern}: first non-empty line matches regex (re.search).",
+      "head": "{lines, pattern}: regex found within the first `lines` non-empty lines.",
+      "regex": "{pattern, min, max=null, ignore_case=false}: count of matches (re.MULTILINE) is within [min, max]; min defaults to 1, or 0 when max is set; max 0 means forbidden.",
+      "ordered": "{patterns}: each regex matches after the end of the previous match.",
+      "nonempty_lines": "{min=0, max=null}: count of non-empty lines.",
+      "labels": "{forbidden=[], min=0, max=null}: every label-like line outside code fences (`LABEL:` at line start, optionally after `- `/`* `, `**` markers ignored, at most 5 words of letters/digits/space/_/&/-) uses an ASCII-uppercase label that is not in `forbidden` and contains no word of the runner's built-in Italian/Spanish/German label vocabulary (TRANSLATED_LABEL_WORDS); label count within [min, max]. Nested list keys (`- merge: ...`) are labels.",
+      "language": "{lang: en|it|es|de, min=0, max=null}: stopword hits in value text (code spans, code blocks and label prefixes removed) within [min, max].",
+      "skill": "{invoked: bool, name='codetalk'}: the Skill tool was (true) or was not (false) called for `name` during this turn. Transcripts without Skill tool data grade as not_verified, never as passed."
+    },
+    "isolation": "Required for every eval. No instruction file (AGENTS.md, CLAUDE.md, CLAUDE.local.md, GEMINI.md) in the workspace, its ancestors, or the user config may mandate codetalk/telegraphic style; no user-level settings, hooks, MCP servers or non-builtin plugins; no inherited parent-session environment; every loaded codetalk skill must be the SKILL.md under test, loaded from the run's workspace. run-evals.py enforces this: preflight violations abort, per-run violations fail the run.",
+    "runner": "python codetalk/evals/run-evals.py validate | selftest | run --model <id> | grade <out-dir>"
+  },
+  "evals": [
+    {
+      "id": 1,
+      "intent": "Multiple missing inputs -> INPUT REQUIRED numbered list",
+      "multi_turn": false,
+      "prompt": "Activate codetalk. I'd like to create an app.",
+      "turns": [
+        {
+          "user": "Activate codetalk. I'd like to create an app.",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^INPUT REQUIRED:\\s*$", "desc": "starts with bare INPUT REQUIRED: line"},
+            {"type": "regex", "pattern": "^\\s*\\d+\\.\\s+\\S", "min": 2, "desc": "at least 2 numbered questions"},
+            {"type": "regex", "pattern": "platform|web|mobile|desktop", "ignore_case": true, "desc": "asks about platform"},
+            {"type": "labels", "desc": "all labels uppercase English"}
+          ]
+        }
+      ],
+      "expected_output": "INPUT REQUIRED with a numbered list of specific questions (platform, purpose); no prose.",
+      "expectations": [
+        "The response is an INPUT REQUIRED block followed by a numbered list of at least two specific questions.",
+        "The questions cover at least the target platform and the app's purpose.",
+        "There is no introductory or closing prose."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "intent": "CHOICE REQUIRED format; style persists across topic change",
+      "multi_turn": true,
+      "prompt": "Activate codetalk.",
+      "turns": [
+        {"user": "Activate codetalk.", "assertions": [
+          {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"}
+        ]},
+        {
+          "user": "I need to choose between SQLite and PostgreSQL.",
+          "assertions": [
+            {"type": "ordered", "patterns": ["^CHOICE REQUIRED:", "^\\s*A[.)]\\s+\\S", "^\\s*B[.)]\\s+\\S", "^RECOMMENDED:\\s*\\S"], "desc": "CHOICE REQUIRED, A, B, then RECOMMENDED"},
+            {"type": "regex", "pattern": "^RECOMMENDED:.*\\bif\\b", "ignore_case": true, "desc": "RECOMMENDED states a condition"},
+            {"type": "regex", "pattern": "^INPUT REQUIRED:", "max": 0, "desc": "CHOICE REQUIRED replaces INPUT REQUIRED (Layout block 3 is one or the other)"},
+            {"type": "labels", "desc": "all labels uppercase English"}
+          ]
+        },
+        {
+          "user": "Let's change the subject: what is photosynthesis?",
+          "assertions": [
+            {"type": "labels", "min": 2, "desc": "still telegraphic: at least 2 uppercase labels"},
+            {"type": "regex", "pattern": "photosynth|chlorophyll|chloroplast|light energy|sunlight|calvin", "ignore_case": true, "desc": "answers the new topic (photosynthesis terms; telegraphic answers need not repeat the word)"}
+          ]
+        }
+      ],
+      "expected_output": "Turn 2: CHOICE REQUIRED with A/B options and trade-offs, followed by RECOMMENDED; no INPUT REQUIRED block. Turn 3: telegraphic style remains active despite the topic change.",
+      "expectations": [
+        "Turn 2: each lettered option states a trade-off.",
+        "Turn 3: the answer uses labeled values, not prose paragraphs, even though the topic changed."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "intent": "Explicit deactivation -> one confirmation line, then normal prose",
+      "multi_turn": true,
+      "prompt": "Activate codetalk. How do I delete a local branch?",
+      "turns": [
+        {
+          "user": "Activate codetalk. How do I delete a local branch?",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "labels", "min": 1, "desc": "codetalk active: at least 1 uppercase label"}
+          ]
+        },
+        {
+          "user": "Disable codetalk.",
+          "assertions": [
+            {"type": "nonempty_lines", "max": 1, "desc": "exactly one confirmation line"},
+            {"type": "regex", "pattern": "disabl|deactivat|\\boff\\b", "ignore_case": true, "desc": "line confirms deactivation"}
+          ]
+        },
+        {
+          "user": "Explain photosynthesis in one paragraph.",
+          "assertions": [
+            {"type": "regex", "pattern": "^\\s*(?:[-*]\\s+)?(?:\\*\\*)?[A-Z][A-Z0-9 _/-]*(?:\\*\\*)?:", "max": 0, "desc": "no uppercase labels (bold included)"},
+            {"type": "regex", "pattern": "^\\s*(?:[-*]|\\d+\\.)\\s", "max": 0, "desc": "no lists"},
+            {"type": "nonempty_lines", "min": 1, "max": 2, "desc": "one paragraph"},
+            {"type": "regex", "pattern": "photosynth", "ignore_case": true, "desc": "on topic"}
+          ]
+        }
+      ],
+      "expected_output": "Turn 2: a single confirmation line, no other content. Turn 3: normal prose. Run without an AGENTS.md file that mandates codetalk.",
+      "expectations": [
+        "Turn 2 contains only a confirmation that codetalk is off.",
+        "Turn 3 is an ordinary prose paragraph with full sentences."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "intent": "No implicit activation",
+      "multi_turn": false,
+      "prompt": "Briefly explain photosynthesis in one paragraph.",
+      "turns": [
+        {
+          "user": "Briefly explain photosynthesis in one paragraph.",
+          "assertions": [
+            {"type": "skill", "invoked": false, "desc": "codetalk skill not invoked"},
+            {"type": "regex", "pattern": "^\\s*(?:[-*]\\s+)?(?:\\*\\*)?[A-Z][A-Z0-9 _/-]*(?:\\*\\*)?:", "max": 0, "desc": "no uppercase labels (bold included)"},
+            {"type": "regex", "pattern": "^\\s*(?:[-*]|\\d+\\.)\\s", "max": 0, "desc": "no lists"},
+            {"type": "nonempty_lines", "min": 1, "max": 2, "desc": "one paragraph"}
+          ]
+        }
+      ],
+      "expected_output": "No implicit activation of codetalk. Run in a fresh session without an AGENTS.md file that mandates the style.",
+      "expectations": [
+        "The response is a normal prose paragraph; the codetalk skill is not invoked."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "intent": "Single missing input -> inline INPUT REQUIRED",
+      "multi_turn": false,
+      "prompt": "Activate codetalk. Rename the project.",
+      "turns": [
+        {
+          "user": "Activate codetalk. Rename the project.",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^INPUT REQUIRED:\\s*\"[^\"]+\"\\s*$", "desc": "INPUT REQUIRED with one inline quoted question"},
+            {"type": "regex", "pattern": "^INPUT REQUIRED:", "min": 1, "max": 1, "desc": "only one INPUT REQUIRED block"},
+            {"type": "regex", "pattern": "^\\s*\\d+\\.\\s", "max": 0, "desc": "no numbered list"}
+          ]
+        }
+      ],
+      "expected_output": "INPUT REQUIRED with a single inline question asking for the new name; no list.",
+      "expectations": [
+        "The single question asks for the new project name."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "intent": "Requested prose: only supplied facts, no rule remarks, telegraphic wrapper",
+      "multi_turn": true,
+      "prompt": "Activate codetalk.",
+      "turns": [
+        {"user": "Activate codetalk.", "assertions": [
+          {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"}
+        ]},
+        {
+          "user": "Write a short message for the team: today's deployment has been postponed until Monday, time to be determined.",
+          "assertions": [
+            {"type": "regex", "pattern": "monday", "ignore_case": true, "desc": "mentions Monday"},
+            {"type": "regex", "pattern": "\\b\\d{1,2}(:\\d{2})?\\s*(a\\.?m\\.?|p\\.?m\\.?)(?![a-z])|\\b\\d{1,2}[:.]\\d{2}\\b", "ignore_case": true, "max": 0, "desc": "no invented time"},
+            {"type": "regex", "pattern": "\\bwe(?:'ll| will| are going to)\\b|\\bwill (?:share|update|let|send|notify|confirm|announce|post|circulate|follow|inform|provide|communicate)\\b|\\blet you know\\b|\\bkeep you\\b|\\bas soon as\\b|\\bonce\\b|\\bstay tuned\\b|\\bfollow[- ]up\\b|\\bapologi|\\bsorry\\b|\\binconvenien|\\bdue to\\b|\\bbecause\\b|\\bowing to\\b|\\bpatience\\b", "ignore_case": true, "max": 0, "desc": "no added promises, reasons or apologies"},
+            {"type": "regex", "pattern": "codetalk|telegraphic|\\bprose\\b|\\bstyle\\b|\\brules?\\b", "ignore_case": true, "max": 0, "desc": "no remarks about the rules"},
+            {"type": "labels", "min": 1, "desc": "surrounding response telegraphic (label such as MESSAGE:)"}
+          ]
+        }
+      ],
+      "expected_output": "A prose message containing only the supplied facts (no added statements); no comments about the rules; surrounding response remains telegraphic.",
+      "expectations": [
+        "The message is prose and states only: today's deployment is postponed, it moves to Monday, the time is to be determined.",
+        "No added reasons, apologies, or promises."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "intent": "WARNING first for destructive command",
+      "multi_turn": false,
+      "prompt": "Activate codetalk. How do I delete a local branch?",
+      "turns": [
+        {
+          "user": "Activate codetalk. How do I delete a local branch?",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^WARNING:", "desc": "first line is WARNING"},
+            {"type": "head", "lines": 3, "pattern": "-D\\b", "desc": "-D risk named in the first 3 lines"},
+            {"type": "ordered", "patterns": ["^WARNING:", "git branch -[dD]"], "desc": "WARNING before commands"},
+            {"type": "regex", "pattern": "git branch -d\\b", "desc": "offers the safe -d delete (numbering optional: SKILL.md lists steps as one body form)"},
+            {"type": "labels", "desc": "all labels uppercase English"}
+          ]
+        }
+      ],
+      "expected_output": "WARNING about -D on the first lines, before the commands; the safe `git branch -d` is offered.",
+      "expectations": [
+        "The WARNING explains that -D force-deletes unmerged work."
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "intent": "Uppercase English labels incl. nested; English values; WARNING first",
+      "multi_turn": false,
+      "prompt": "Activate codetalk. What is the difference between git merge and git rebase?",
+      "turns": [
+        {
+          "user": "Activate codetalk. What is the difference between git merge and git rebase?",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^WARNING:", "desc": "first line is WARNING"},
+            {"type": "head", "lines": 3, "pattern": "rebase", "desc": "rebase risk in the first 3 lines"},
+            {"type": "labels", "min": 3, "desc": "all labels (incl. nested) uppercase English, at least 3"},
+            {"type": "language", "lang": "en", "min": 3, "desc": "values in English"}
+          ]
+        }
+      ],
+      "expected_output": "All labels are uppercase English, including nested labels (e.g. HISTORY, CONFLICTS, USAGE); values are in English; WARNING about rebase on the first lines.",
+      "expectations": [
+        "The WARNING concerns rewriting shared history with rebase."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "intent": "Italian input: English labels, Italian values, WARNING first",
+      "multi_turn": false,
+      "prompt": "Attiva codetalk. Come elimino un branch locale?",
+      "turns": [
+        {
+          "user": "Attiva codetalk. Come elimino un branch locale?",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^WARNING:", "desc": "first line is WARNING (not ATTENZIONE/AVVISO)"},
+            {"type": "head", "lines": 3, "pattern": "-D\\b", "desc": "-D risk in the first 3 lines"},
+            {"type": "labels", "forbidden": ["ATTENZIONE", "AVVISO", "AVVERTENZA", "COMANDI", "COMANDO", "PASSI", "PASSAGGI", "NOTA", "EFFETTO", "RISULTATO", "VERIFICA", "CONTROLLO"], "desc": "labels uppercase English, not translated"},
+            {"type": "language", "lang": "it", "min": 3, "desc": "values in Italian"},
+            {"type": "language", "lang": "en", "max": 2, "desc": "values not in English"}
+          ]
+        }
+      ],
+      "expected_output": "WARNING about -D on the first lines; labels uppercase English (never ATTENZIONE, COMANDI, PASSI...); values in Italian.",
+      "expectations": [
+        "Every label is English and uppercase; every value is Italian."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "intent": "Language switch mid-session: uppercase English labels, Italian values",
+      "multi_turn": true,
+      "prompt": "Activate codetalk.",
+      "turns": [
+        {"user": "Activate codetalk.", "assertions": [
+          {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"}
+        ]},
+        {
+          "user": "Qual è la differenza tra git merge e git rebase?",
+          "assertions": [
+            {"type": "first_line", "pattern": "^WARNING:", "desc": "first line is WARNING"},
+            {"type": "head", "lines": 3, "pattern": "rebase", "desc": "rebase risk in the first 3 lines"},
+            {"type": "labels", "min": 3, "forbidden": ["STORIA", "CRONOLOGIA", "CONFLITTI", "USO", "UTILIZZO", "QUANDO USARE", "DIFFERENZA", "DIFFERENZE", "ATTENZIONE", "AVVISO", "AVVERTENZA", "NOTA"], "desc": "labels (incl. nested) uppercase English, not translated, at least 3"},
+            {"type": "language", "lang": "it", "min": 4, "desc": "values follow the user's new language (Italian)"},
+            {"type": "language", "lang": "en", "max": 2, "desc": "values not in English"}
+          ]
+        }
+      ],
+      "expected_output": "Labels stay uppercase English (HISTORY, CONFLICTS, USAGE...) while values switch to Italian; WARNING about rebase first.",
+      "expectations": [
+        "Nested labels are English and uppercase; values are Italian sentences or fragments."
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "intent": "Italian: untranslated INPUT REQUIRED, deactivation, Italian prose",
+      "multi_turn": true,
+      "prompt": "Attiva codetalk. Vorrei creare un'app.",
+      "turns": [
+        {
+          "user": "Attiva codetalk. Vorrei creare un'app.",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^INPUT REQUIRED:\\s*$", "desc": "INPUT REQUIRED label untranslated"},
+            {"type": "regex", "pattern": "^\\s*\\d+\\.\\s+\\S", "min": 2, "desc": "at least 2 numbered questions"},
+            {"type": "labels", "forbidden": ["INPUT RICHIESTO", "DATI RICHIESTI", "RICHIESTA", "DOMANDE", "INFORMAZIONI RICHIESTE"], "desc": "labels uppercase English"},
+            {"type": "language", "lang": "it", "min": 2, "desc": "questions in Italian"}
+          ]
+        },
+        {
+          "user": "Disattiva codetalk.",
+          "assertions": [
+            {"type": "nonempty_lines", "max": 1, "desc": "exactly one confirmation line"}
+          ]
+        },
+        {
+          "user": "Spiega la fotosintesi in un paragrafo.",
+          "assertions": [
+            {"type": "regex", "pattern": "^\\s*(?:[-*]\\s+)?(?:\\*\\*)?[A-Z][A-Z0-9 _/-]*(?:\\*\\*)?:", "max": 0, "desc": "no uppercase labels (bold included)"},
+            {"type": "regex", "pattern": "^\\s*(?:[-*]|\\d+\\.)\\s", "max": 0, "desc": "no lists"},
+            {"type": "nonempty_lines", "min": 1, "max": 2, "desc": "one paragraph"},
+            {"type": "language", "lang": "it", "min": 5, "desc": "prose in Italian"}
+          ]
+        }
+      ],
+      "expected_output": "Turn 1: INPUT REQUIRED (English) with numbered Italian questions. Turn 2: one confirmation line. Turn 3: normal Italian prose.",
+      "expectations": [
+        "Turn 1 questions are Italian and cover platform and purpose.",
+        "Turn 3 is an ordinary Italian prose paragraph."
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "intent": "Spanish input: English labels, Spanish values, WARNING first",
+      "multi_turn": false,
+      "prompt": "Activa codetalk. ¿Cómo deshago mi último commit sin perder los cambios?",
+      "turns": [
+        {
+          "user": "Activa codetalk. ¿Cómo deshago mi último commit sin perder los cambios?",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "first_line", "pattern": "^WARNING:", "desc": "first line is WARNING (not ADVERTENCIA)"},
+            {"type": "regex", "pattern": "git (reset --soft|revert)", "min": 1, "desc": "gives a non-destructive undo command"},
+            {"type": "labels", "forbidden": ["ADVERTENCIA", "AVISO", "PASOS", "COMANDOS", "EFECTO", "RESULTADO", "NOTA", "VERIFICAR", "COMPROBAR", "NO ENVIADO", "ENVIADO", "NO PUBLICADO", "PUBLICADO"], "desc": "labels uppercase English, not translated"},
+            {"type": "language", "lang": "es", "min": 3, "desc": "values in Spanish"},
+            {"type": "language", "lang": "en", "max": 2, "desc": "values not in English"}
+          ]
+        }
+      ],
+      "expected_output": "WARNING (pushed commits, shared history) first; labels uppercase English; values in Spanish; reset --soft for unpushed, revert for pushed.",
+      "expectations": [
+        "The WARNING distinguishes pushed from unpushed commits."
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "intent": "German input: CHOICE REQUIRED / RECOMMENDED untranslated, German values",
+      "multi_turn": false,
+      "prompt": "Aktiviere codetalk. Ich muss zwischen SQLite und PostgreSQL wählen.",
+      "turns": [
+        {
+          "user": "Aktiviere codetalk. Ich muss zwischen SQLite und PostgreSQL wählen.",
+          "assertions": [
+            {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"},
+            {"type": "ordered", "patterns": ["^CHOICE REQUIRED:", "^\\s*A[.)]\\s+\\S", "^\\s*B[.)]\\s+\\S", "^RECOMMENDED:\\s*\\S"], "desc": "CHOICE REQUIRED, A, B, then RECOMMENDED"},
+            {"type": "regex", "pattern": "^(?:INPUT REQUIRED|EINGABE ERFORDERLICH):", "max": 0, "desc": "CHOICE REQUIRED replaces INPUT REQUIRED (Layout block 3 is one or the other)"},
+            {"type": "labels", "forbidden": ["AUSWAHL ERFORDERLICH", "ENTSCHEIDUNG ERFORDERLICH", "WAHL ERFORDERLICH", "EMPFOHLEN", "EMPFEHLUNG", "WARNUNG", "HINWEIS"], "desc": "labels uppercase English, not translated"},
+            {"type": "language", "lang": "de", "min": 3, "desc": "values in German"},
+            {"type": "language", "lang": "en", "max": 2, "desc": "values not in English"}
+          ]
+        }
+      ],
+      "expected_output": "CHOICE REQUIRED with A/B options and German trade-offs, then RECOMMENDED; no INPUT REQUIRED block; labels never translated.",
+      "expectations": [
+        "Each option states a trade-off in German."
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "intent": "Italian 'be concise' is not a trigger",
+      "multi_turn": false,
+      "prompt": "Sii conciso: cos'è la fotosintesi?",
+      "turns": [
+        {
+          "user": "Sii conciso: cos'è la fotosintesi?",
+          "assertions": [
+            {"type": "skill", "invoked": false, "desc": "codetalk skill not invoked"},
+            {"type": "regex", "pattern": "^\\s*(?:[-*]\\s+)?(?:\\*\\*)?[A-Z][A-Z0-9 _/-]*(?:\\*\\*)?:", "max": 0, "desc": "no uppercase labels (bold included)"},
+            {"type": "regex", "pattern": "fotosintesi", "ignore_case": true, "desc": "on topic"},
+            {"type": "language", "lang": "it", "min": 3, "desc": "answers in Italian"}
+          ]
+        }
+      ],
+      "expected_output": "Normal Italian answer in the agent's default style; codetalk not activated by a brevity request.",
+      "expectations": [
+        "The codetalk skill is not invoked, and the answer uses none of its layout: no uppercase `LABEL:` lines, no WARNING / INPUT REQUIRED / CHOICE REQUIRED blocks. (Markdown headings or lists are the agent's default style without the skill and are not graded here.)"
+      ],
+      "files": []
+    },
+    {
+      "id": 15,
+      "intent": "Italian requested prose: only supplied facts, no invented promises",
+      "multi_turn": true,
+      "prompt": "Attiva codetalk.",
+      "turns": [
+        {"user": "Attiva codetalk.", "assertions": [
+          {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"}
+        ]},
+        {
+          "user": "Scrivi un breve messaggio per il team: il rilascio di oggi è rinviato a lunedì, orario da definire.",
+          "assertions": [
+            {"type": "regex", "pattern": "luned", "ignore_case": true, "desc": "mentions Monday (lunedì)"},
+            {"type": "regex", "pattern": "\\b\\d{1,2}[:.]\\d{2}\\b|\\balle (?:ore )?\\d{1,2}\\b", "ignore_case": true, "max": 0, "desc": "no invented time"},
+            {"type": "regex", "pattern": "\\b(?:faremo|comunicheremo|condivideremo|aggiorneremo|informeremo|terremo|manderemo|invieremo|confermeremo|daremo)\\b|\\b(?:verr[àa]|sar[àa]) (?:comunicat|condivis|res[oa] not|annunciat|inviat)\\w*|\\b(?:non )?appena (?:sar|possibil|confermat|definit|disponibil|avremo|lo |la )\\w*|\\bci scusiamo\\b|\\bscus[ae]\\b|\\bdisagi\\w*|\\ba causa\\b|\\bperch[ée]\\b|\\bdovut[oa] a\\b|\\bpazienza\\b", "ignore_case": true, "max": 0, "desc": "no added promises (Italian), reasons or apologies"},
+            {"type": "regex", "pattern": "codetalk|telegrafic|\\bprosa\\b|\\bstile\\b|\\bregol[ae]\\b", "ignore_case": true, "max": 0, "desc": "no remarks about the rules"},
+            {"type": "labels", "min": 1, "forbidden": ["MESSAGGIO", "TESTO"], "desc": "surrounding response telegraphic with an English label (MESSAGE:), not translated"},
+            {"type": "language", "lang": "it", "min": 3, "desc": "message in Italian"}
+          ]
+        }
+      ],
+      "expected_output": "An English label such as MESSAGE: wrapping an Italian prose message that states only: today's release is postponed, it moves to Monday, the time is to be defined.",
+      "expectations": [
+        "The message is Italian prose and adds no reasons, apologies, promises, dates or times."
+      ],
+      "files": []
+    },
+    {
+      "id": 16,
+      "intent": "Language switch to German mid-session: WARNING first, English labels, German values",
+      "multi_turn": true,
+      "prompt": "Activate codetalk.",
+      "turns": [
+        {"user": "Activate codetalk.", "assertions": [
+          {"type": "skill", "invoked": true, "desc": "codetalk skill invoked"}
+        ]},
+        {
+          "user": "Wie lösche ich einen lokalen Branch?",
+          "assertions": [
+            {"type": "first_line", "pattern": "^WARNING:", "desc": "first line is WARNING (not WARNUNG/HINWEIS)"},
+            {"type": "head", "lines": 3, "pattern": "-D\\b", "desc": "-D risk in the first 3 lines"},
+            {"type": "labels", "forbidden": ["WARNUNG", "HINWEIS", "BEFEHLE", "SCHRITTE", "ERGEBNIS", "PRÜFUNG"], "desc": "labels (incl. nested) uppercase English, not translated"},
+            {"type": "language", "lang": "de", "min": 3, "desc": "values follow the user's new language (German)"},
+            {"type": "language", "lang": "en", "max": 2, "desc": "values not in English"}
+          ]
+        }
+      ],
+      "expected_output": "WARNING about -D first, although the session started in English and the question is German; labels uppercase English; values in German.",
+      "expectations": [
+        "The WARNING explains in German that -D deletes unmerged work; every label is English and uppercase."
+      ],
+      "files": []
+    }
+  ]
+}

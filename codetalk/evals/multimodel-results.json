@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-30",
+  "status": "completed_with_machine_failures",
+  "scope": "16 cases x 3 repetitions per model; real multi-turn sessions; no delegated coding workers",
+  "method": "Pi print-mode API calls. Only the read tool is enabled; activation requires a successful read returning the exact staged skill body. This is not Claude Code Skill-tool validation.",
+  "inputs_sha256": {
+    "SKILL.md": "cffd280a2a752ac84d2cdd2ab6875e7d7d11fe76ed9e3365f02716834feea58e",
+    "evals/evals.json": "fb99c16766d26f1d777d7a00894ea39134775fa08fc63a7c78e6ac96c1158a78",
+    "evals/run-models.py": "e550ee3aa8fc750903c6eafbfcb2b32219e0cf20213b7c59905c8fbf06ede5c3",
+    "evals/run-evals.py": "36622a0528f2ee0a2171124ae3954095e5b0f27076ce763191404b39c0bf02fa"
+  },
+  "isolation": {
+    "workspace": "Fresh temporary directory and separate session per run; only the staged skill is advertised.",
+    "disabled": "Extensions, discovered skills, context files, MCP, prompt templates and themes; parent session identity variables removed.",
+    "system_prompt": "Neutral assistant prompt with the skill name, description and file path; body is not preloaded. The model chooses whether to read it.",
+    "thinking": "off for all three models",
+    "identity": "Every assistant message must report the exact requested provider and model; no automatic model fallback. Provider-reported identity is not independent server attestation."
+  },
+  "models": {
+    "gpt-6.1-sol": {
+      "provider": "openai-codex", "runs": 48, "turns": 78,
+      "machine_runs_passed": 43, "machine_assertions_passed": 283, "machine_assertions_total": 288,
+      "execution_errors": 0, "reported_cost_usd": 0.293628,
+      "failed_runs": ["eval-8/run-1", "eval-8/run-3", "eval-11/run-1", "eval-11/run-3", "eval-16/run-3"],
+      "review": "Confirmed lowercase nested Command labels and unsolicited activation-status prefixes. Some machine failures are heuristic: case-sensitive rebase rejects Rebase; German stopword threshold rejects a valid German answer. Raw scores are preserved, not silently corrected."
+    },
+    "gpt-6-astra": {
+      "provider": "openai-codex", "runs": 48, "turns": 78,
+      "machine_runs_passed": 45, "machine_assertions_passed": 285, "machine_assertions_total": 288,
+      "execution_errors": 0, "reported_cost_usd": 1.500742,
+      "failed_runs": ["eval-2/run-2", "eval-9/run-1", "eval-16/run-1"],
+      "review": "Failures require interpretation: conditional advice used for instead of literal if; safe branch-deletion answer omitted -D entirely; a German answer had too few stopword hits. These are machine failures, not proof of unsafe or untranslated output."
+    },
+    "deepseek-flash": {
+      "provider": "deepseek", "runs": 48, "turns": 78,
+      "machine_runs_passed": 28, "machine_assertions_passed": 262, "machine_assertions_total": 288,
+      "execution_errors": 0, "reported_cost_usd": 0.047845,
+      "review": "Confirmed translated/mixed-case labels, extra activation prefixes, simultaneous CHOICE and INPUT blocks, and Italian answers to English, Spanish or German prompts. The English requested-prose case and Italian requested-prose case passed all repetitions. The German branch-deletion response in eval-16/run-3 incorrectly says -d also deletes unmerged commits; automatic assertions did not detect that factual error."
+    }
+  },
+  "qualitative_review": {
+    "status": "partial_direct_review",
+    "reviewer": "Pi assistant; no separate judge model",
+    "scope": "Inspected every machine-failing response and all 18 English/Italian requested-prose messages. Did not assign a full judge pass rate to all responses.",
+    "prose": "All 18 inspected messages retain supplied deployment facts without added promises.",
+    "limitations": "Three samples per case; language and label regexes are heuristics. Machine success does not establish factual correctness, full language compliance or safety. Results are host-specific and not directly interchangeable with Claude Code results."
+  },
+  "offline_parser_tests": "6/6 passed: python -I codetalk/evals/test_models.py",
+  "raw_evidence": "runs/multimodel-final-20261030/ (gitignored; contains local paths)",
+  "reproduce": "python codetalk/evals/run-models.py --runs 3 --out codetalk/evals/runs/<fresh-directory>",
+  "opus": "Separate Windows scheduled task remains unchanged: 2026-10-30 01:00 Europe/Rome. It executes independently and does not depend on this harness.",
+  "release_claim": "Three-model machine validation completed with failures. No claim that all models passed or that final Opus validation has completed."
+}

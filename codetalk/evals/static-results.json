@@ -1,0 +1,74 @@
+{
+  "status": "PARTIAL: final-version three-model Pi validation completed with machine failures; final Opus validation pending; direct second-pass review complete",
+  "multimodel_validation": {
+    "report": "evals/multimodel-results.json",
+    "skill_sha256": "cffd280a2a752ac84d2cdd2ab6875e7d7d11fe76ed9e3365f02716834feea58e",
+    "machine_run_passes": {"gpt-6.1-sol": "43/48", "gpt-6-astra": "45/48", "deepseek-flash": "28/48"},
+    "execution_errors": 0,
+    "qualitative_review": "partial: all machine failures and requested-prose responses inspected; no full judge pass rate",
+    "method": "Pi host, verified read-tool skill loading; not interchangeable with Claude Code Skill-tool validation"
+  },
+  "direct_final_review": {
+    "report": "evals/release-review.json",
+    "delegated": false,
+    "runner_sha256": "36622a0528f2ee0a2171124ae3954095e5b0f27076ce763191404b39c0bf02fa",
+    "runner_regressions": "11/11 pass: python -I codetalk/evals/test_runner.py",
+    "independence": "Second-pass self-review, not external independent review",
+    "behavioral_verdict": "not_verified: final-version quota probe completed zero turns"
+  },
+  "latest_local_recheck": {
+    "recorded_by": "Pi assistant; local deterministic checks, no model calls",
+    "skill_sha256": "cffd280a2a752ac84d2cdd2ab6875e7d7d11fe76ed9e3365f02716834feea58e",
+    "changes": "Git remote absence no longer treated as proof of unpublished status; removed unrequested today from MESSAGE; replaced unsafe database-specific backup example with backup verification and database clarification.",
+    "static_checks": "11/11 pass",
+    "evals_validate": "16 evals, 96 assertions",
+    "runner_selftest": "43/43 pass",
+    "git_example": "13/13 pass in disposable Git repos",
+    "behavioral_tests": "not_run for this skill hash: Claude account usage limit",
+    "independent_final_review": "not performed; direct second-pass review recorded separately in direct_final_review"
+  },
+  "date": "2026-10-30",
+  "recorded_by": "ct-results agent (Task 4), claude-opus-5-5",
+  "static_checks": {
+    "inputs_sha256": {
+      "SKILL.md": "2466e63de530f1420b20303e9a9a58d3a0565c94dd9ad89e617fcc87c9eb06b8",
+      "evals/evals.json": "fb99c16766d26f1d777d7a00894ea39134775fa08fc63a7c78e6ac96c1158a78",
+      "evals/run-evals.py": "9344c9517c5842e908eb6bb55ada714b7a7c72e96d9ae677d7c412bd3e36ebb3"
+    },
+    "skill_and_schema": "11/11 pass: python codetalk/evals/ct-static-checks.py codetalk (frontmatter incl. license, license file byte-identical to root, activation, persistence, deactivation, choice format, example labels uppercase/untranslated, WARNING first, size, evals.json schema, 16 evals). Checker negative-tested on a mutated copy.",
+    "evals_validate": "OK: 16 evals, 96 assertions (python codetalk/evals/run-evals.py validate)",
+    "runner_selftest": "43/43 (python codetalk/evals/run-evals.py selftest)",
+    "git_undo_example": "13/13, git 2.56.0.windows.1: python -I codetalk/evals/ct-git-example-check.py codetalk <new temp dir> (commands parsed from SKILL.md and executed in disposable repos; negative test with a destructive PUSHED step fails 4 checks as expected)",
+    "stale_note": "ct-independent-review announced an edit of the Git undo example after these checks; re-run against the final SKILL.md sha."
+  },
+  "behavioral_tests": {
+    "status": "not_run",
+    "reason": "Final run 2026-10-29/30 (16 evals x 3, claude-opus-5-5, SKILL 2466e63d) hit the account usage limit: 34/48 runs ended with claude error \"You've hit your 5-hour limit\" (rc=1). Only 14 runs completed (evals 1-4 all 3 runs, eval 5 two runs); all 14 passed their machine assertions. This is partial and not counted as a suite result. SKILL.md has since been edited, so a full re-run on the final sha is required.",
+    "partial_run_dir": "runs/2026-10-29-claude-opus-5-5-ct-results-2 (gitignored, local only)",
+    "command": "python codetalk/evals/run-evals.py run --model claude-opus-5-5 --runs 3 --allow-user-skill --out codetalk/evals/runs/<new unique dir> --work-root <temp dir>",
+    "required_next": "After all SKILL.md edits are final and the usage limit resets: full 16x3 run, judge review, update this file."
+  },
+  "isolation": {
+    "applied_by_runner": "Fresh temp workspace per run with only .claude/skills/codetalk/SKILL.md; --setting-sources project,local; --strict-mcp-config; --tools Skill; parent Claude Code env vars stripped (plugin dirs, effort, session/messaging ids); runs fail if a non-builtin plugin, an MCP server, or a skill copy other than the workspace copy loads, or if modelUsage lacks the requested model.",
+    "user_skill": "--allow-user-skill: ~/.claude/skills/codetalk differs from the repo copy; verified not loaded under these flags (empty-workspace probe lists no codetalk skill; runner checks each skill load's base dir and content).",
+    "residual": "~/.claude/CLAUDE.md still loads (graphify pointer only; no codetalk/telegraphic mention). The default Claude Code system prompt applies."
+  },
+  "eval_count": 16,
+  "history": [
+    {
+      "date": "2026-10-29",
+      "skill_sha256": "d96c5b7e181352017e0777610b55ae9298b76bbefe4d36da519dfe5df26390f7",
+      "evals_sha256": "ff009fdde93c50354b05d58a00dddcc3d6087a79bf31472b5919b14d90e8b283",
+      "model": "claude-opus-5-5 (all 66 turns; no substitution)",
+      "result": "14 evals x 3: machine 34/42, judge 32/42, both 28/42. Real failures: eval 10 en->it switch (WARNING not first 3/3, translated labels), eval 9 r1 translated label, eval 7 r1 no numbered steps, eval 6 judge 3/3 invented promise, eval 14 judge 3/3 lists instead of prose. Eval 2 machine 0/3 was an assertion false negative.",
+      "isolation_correction": "This run inherited the parent session env, so the user plugin moshi-hook (TUI prompt-suggestion forwarder, no context injection) was loaded; the earlier claim of no plugins was wrong. Fixed in run-evals.py 9344c951.",
+      "superseded": true
+    },
+    {"date": "2026-10-17", "result": "PARTIAL manual claude -p on haiku and sonnet, 1 run each; sonnet pass, haiku fail (translated labels, WARNING not first)", "superseded": true}
+  ],
+  "limitations": [
+    "3 runs per eval; low-n estimates.",
+    "Machine assertions are regex/stopword heuristics; judge review is by the same model family (not independent).",
+    "Windows 11 only."
+  ]
+}

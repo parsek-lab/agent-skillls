@@ -1,0 +1,8 @@
+# Raw eval run artifacts (transcripts, run metadata): contain absolute local
+# paths and session ids. Kept locally as evidence; not published.
+# Published summary: codetalk/evals/static-results.json.
+codetalk/evals/runs/
+
+# Python bytecode
+__pycache__/
+*.pyc

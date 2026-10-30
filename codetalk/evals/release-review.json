@@ -1,0 +1,37 @@
+{
+  "status": "final_opus_validation_pending; multimodel_machine_validation_completed_with_failures",
+  "supplemental_validation": "evals/multimodel-results.json: final skill tested on gpt-6.1-sol, gpt-6-astra and deepseek-flash; 48 runs per model; different host from Claude Code; partial qualitative review",
+  "reviewer": "Pi assistant, direct review; no delegated workers",
+  "review_scope": "Read the complete final skill, 16 eval definitions and runner; reviewed installation documentation, licensing package, local transcript inventory and validation evidence.",
+  "independence": "A direct second-pass review, not an independent external reviewer. This assistant also made the final corrections.",
+  "inputs_sha256": {
+    "SKILL.md": "cffd280a2a752ac84d2cdd2ab6875e7d7d11fe76ed9e3365f02716834feea58e",
+    "evals/evals.json": "fb99c16766d26f1d777d7a00894ea39134775fa08fc63a7c78e6ac96c1158a78",
+    "evals/run-evals.py": "36622a0528f2ee0a2171124ae3954095e5b0f27076ce763191404b39c0bf02fa"
+  },
+  "fixes": [
+    "Require init-event evidence and recorded skill content/base directory when codetalk is invoked; missing evidence fails closed.",
+    "Refuse to overwrite a nonempty model-run output directory.",
+    "Refuse offline regrading when evaluation definitions differ from the recorded hash, preserving historical evidence.",
+    "Pass system-prompt-snapshot on explicitly for stable multi-turn context."
+  ],
+  "offline_checks": {
+    "eval_schema": "passed: 16 cases, 96 assertions",
+    "assertion_selftests": "passed: 43/43",
+    "runner_regressions": "passed: 11/11; missing provenance, wrong model, external plugins, wrong skill copy, inherited environment, unknown IDs, missing turns, stale grading and output preservation",
+    "git_diff_check": "passed; repository has no tracked changes, so untracked content was separately read"
+  },
+  "behavioral_evidence_review": {
+    "historical_run": "42 transcripts, 0 execution errors; different skill hash, not final-version evidence",
+    "partial_second_run": "48 transcripts, 34 execution errors due to usage limit, 26 completed turns; different skill hash, not final-version evidence",
+    "final_version_probe": "1 transcript, 1 usage-limit error, 0 completed turns; not a behavioral pass",
+    "verdict": "not_verified",
+    "reason": "Claude Opus 5.5 account quota prevents actual execution. Offline fixtures and this assistant's own example responses cannot replace independent multi-turn model runs."
+  },
+  "remaining": [
+    "Run all 16 cases with 3 repetitions on the final skill and runner, using a fresh output directory after account access is restored.",
+    "Review machine failures and judge expectations against raw responses; record the exact model, input hashes and isolation evidence.",
+    "Update static-results.json and the README with the actual final results, not partial historical scores."
+  ],
+  "release_decision": "Do not claim fully behaviorally validated until the remaining model runs and response review are complete."
+}

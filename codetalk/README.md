@@ -10,6 +10,12 @@ Copy/paste into your CLI prompt:
 Install the codetalk skill from https://github.com/parsek-lab/agent-skillls/tree/main/codetalk for my coding agent. Follow the agent's skill installation conventions and keep LICENSE with SKILL.md.
 ```
 
+To enable codetalk permanently, add this line to your global `AGENTS.md` or `CLAUDE.md`:
+
+```text
+- Activate codetalk for every new session.
+```
+
 ## Usage
 
 - Activate: `Activate codetalk.` or `/codetalk` in Claude Code.

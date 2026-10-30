@@ -6,3 +6,4 @@ codetalk/evals/runs/
 # Python bytecode
 __pycache__/
 *.pyc
+.pi

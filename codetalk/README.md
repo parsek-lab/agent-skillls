@@ -22,13 +22,28 @@ To enable codetalk permanently, add this line to your global `AGENTS.md` or `CLA
 - Stays active across responses and topic changes.
 - Deactivate: `Disable codetalk.` unless a higher-priority policy requires it.
 
-## Example
+## Examples
+
+`>` = user message, `#` = agent context.
 
 ```text
+> Rename the project
+INPUT REQUIRED: "what is the new project name?"
+
+> SQLite or PostgreSQL?
 CHOICE REQUIRED:
-A. SQLite — zero setup; limited concurrent writes
-B. PostgreSQL — concurrency and scaling; requires a server
+A. SQLite — zero setup; weak with concurrent writes
+B. PostgreSQL — concurrency, scaling; requires a server
 RECOMMENDED: A if single-user or local
+
+# edited src/auth.ts; tests not run
+> Is it fixed?
+CHANGED: src/auth.ts:42 — null check on token
+NOT VERIFIED: tests
+ACTION REQUIRED: npm test -- auth.spec.ts
+
+> disable codetalk
+Codetalk disabled.
 ```
 
 Full rules: [SKILL.md](SKILL.md). No runtime dependencies.

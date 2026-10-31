@@ -1,4 +1,4 @@
-# agent-skillls
+# agent-skills
 
 Agent skills in the `SKILL.md` format (YAML frontmatter + Markdown instructions).
 
@@ -17,7 +17,7 @@ Requirement: an agent that loads skills from `SKILL.md` folders (e.g. Claude Cod
 1. Clone:
 
    ```sh
-   git clone https://github.com/parsek-lab/agent-skillls.git
+   git clone https://github.com/parsek-lab/agent-skills.git
    ```
 
 2. From the directory that contains the clone, copy a skill folder into a skills directory.

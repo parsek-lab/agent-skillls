@@ -7,7 +7,7 @@ Telegraphic answers for coding agents: labeled values, pseudocode and numbered s
 Copy/paste into your CLI prompt:
 
 ```text
-Install the codetalk skill from https://github.com/parsek-lab/agent-skillls/tree/main/codetalk for my coding agent. Follow the agent's skill installation conventions and keep LICENSE with SKILL.md.
+Install the codetalk skill from https://github.com/parsek-lab/agent-skills/tree/main/codetalk for my coding agent. Follow the agent's skill installation conventions and keep LICENSE with SKILL.md.
 ```
 
 To enable codetalk permanently, add this line to your global `AGENTS.md` or `CLAUDE.md`:
